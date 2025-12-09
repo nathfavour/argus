@@ -190,7 +190,25 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 <i className="fas fa-satellite-dish mr-2"></i>
                 Acquire GPS Coordinates
               </Button>
-              {locError && <p className="text-red-500 dark:text-red-400 text-xs mt-2">{locError}</p>}
+              {locError && (
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-left">
+                  <div className="flex items-start gap-3">
+                    <i className="fas fa-exclamation-triangle text-red-500 mt-1 shrink-0"></i>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-red-800 dark:text-red-300">Location Access Failed</p>
+                      <p className="text-xs text-red-700 dark:text-red-400 mt-1 mb-2">{locError}</p>
+                      <div className="text-xs text-slate-600 dark:text-slate-400">
+                        <span className="font-semibold mb-1 block">Possible solutions:</span>
+                        <ul className="list-disc ml-4 space-y-1">
+                          <li>Allow location access in browser settings</li>
+                          <li>Enable device GPS/Location services</li>
+                          <li>Check if a browser extension is blocking access</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
              <div className="h-32 bg-slate-100 dark:bg-slate-950 rounded-lg relative overflow-hidden flex items-center justify-center border border-slate-200 dark:border-slate-800">
@@ -291,7 +309,6 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <Button 
           type="submit" 
           className="w-full py-4 text-lg font-bold shadow-emerald-900/50"
-          // We allow submit if there is content OR attachments
           disabled={!content.trim() && attachments.length === 0}
           isLoading={isSubmitting}
         >
