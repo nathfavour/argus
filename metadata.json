@@ -1,0 +1,8 @@
+{
+  "name": "Argus",
+  "description": "Decentralized Local Intelligence Platform for secure, anonymous security reporting.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}
