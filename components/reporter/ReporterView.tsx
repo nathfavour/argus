@@ -66,6 +66,11 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     e.preventDefault();
     if (!content.trim()) return;
 
+    if (!location) {
+      alert("GPS coordinates are required for secure verification. Please acquire location first.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const hash = await submitReport({ content, location });
@@ -210,7 +215,7 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <Button 
           type="submit" 
           className="w-full py-4 text-lg font-bold shadow-emerald-900/50"
-          disabled={!content || !location}
+          disabled={!content}
           isLoading={isSubmitting}
         >
           Submit Secure Report
