@@ -52,7 +52,7 @@ export const VerifierDashboard: React.FC<{ onLogout: () => void, isDarkMode: boo
     setIsPlayingAudio(true);
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       }
       
       const base64Audio = await generateSpeech(text);
@@ -143,7 +143,12 @@ export const VerifierDashboard: React.FC<{ onLogout: () => void, isDarkMode: boo
                       {new Date(report.timestamp).toLocaleString()}
                     </span>
                   </div>
-                  <h3 className="text-slate-800 dark:text-slate-200 text-sm font-medium line-clamp-2">{report.content}</h3>
+                  <div className="flex justify-between items-start gap-2">
+                     <h3 className="text-slate-800 dark:text-slate-200 text-sm font-medium line-clamp-2">{report.content || "Media Only Report"}</h3>
+                     {report.attachments && report.attachments.length > 0 && (
+                        <i className="fas fa-paperclip text-slate-400 text-xs"></i>
+                     )}
+                  </div>
                   <div className="mt-3 flex items-center text-xs text-slate-500">
                     <i className="fas fa-map-marker-alt mr-2"></i>
                     {report.location.latitude.toFixed(4)}, {report.location.longitude.toFixed(4)}
@@ -155,7 +160,7 @@ export const VerifierDashboard: React.FC<{ onLogout: () => void, isDarkMode: boo
             {/* Detail Column (Sticky) */}
             <div className="hidden lg:block">
               {selectedReport ? (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sticky top-4 transition-colors duration-300 shadow-sm">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sticky top-4 transition-colors duration-300 shadow-sm max-h-[80vh] overflow-y-auto">
                   <div className="flex justify-between items-start mb-6">
                     <div>
                       <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Report Analysis</h2>
@@ -181,16 +186,33 @@ export const VerifierDashboard: React.FC<{ onLogout: () => void, isDarkMode: boo
                   </div>
                   
                   <div className="space-y-4">
+                     {/* Media Gallery */}
+                     {selectedReport.attachments && selectedReport.attachments.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                          {selectedReport.attachments.map(att => (
+                            <div key={att.id} className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 aspect-video bg-slate-100 dark:bg-slate-950 flex items-center justify-center">
+                              {att.type === 'image' ? (
+                                <img src={att.url} alt="Proof" className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                              ) : (
+                                <video src={att.url} controls className="w-full h-full object-contain" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                     )}
+
                      <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 relative">
                         <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">Decrypted Intelligence</label>
-                        <p className="text-slate-800 dark:text-slate-200 leading-relaxed pr-8">{selectedReport.content}</p>
-                        <button 
-                          onClick={() => handleReadAloud(selectedReport.content)}
-                          className={`absolute top-2 right-2 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors ${isPlayingAudio ? 'text-emerald-500' : 'text-slate-400'}`}
-                          title="Read Aloud"
-                        >
-                          <i className={`fas ${isPlayingAudio ? 'fa-volume-up fa-beat' : 'fa-volume-up'}`}></i>
-                        </button>
+                        <p className="text-slate-800 dark:text-slate-200 leading-relaxed pr-8">{selectedReport.content || "No text content."}</p>
+                        {selectedReport.content && (
+                          <button 
+                            onClick={() => handleReadAloud(selectedReport.content)}
+                            className={`absolute top-2 right-2 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors ${isPlayingAudio ? 'text-emerald-500' : 'text-slate-400'}`}
+                            title="Read Aloud"
+                          >
+                            <i className={`fas ${isPlayingAudio ? 'fa-volume-up fa-beat' : 'fa-volume-up'}`}></i>
+                          </button>
+                        )}
                      </div>
                      
                      <div className="grid grid-cols-2 gap-4">

@@ -36,11 +36,24 @@
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    
     <style>
       /* Custom map marker style fixes */
       .leaflet-pane { z-index: 10 !important; }
       .leaflet-top, .leaflet-bottom { z-index: 20 !important; }
+      
+      /* Dark mode overrides for clusters if needed */
+      .dark .marker-cluster-small { background-color: rgba(16, 185, 129, 0.6); }
+      .dark .marker-cluster-small div { background-color: rgba(6, 78, 59, 0.8); color: white; }
+      .dark .marker-cluster-medium { background-color: rgba(245, 158, 11, 0.6); }
+      .dark .marker-cluster-medium div { background-color: rgba(120, 53, 15, 0.8); color: white; }
     </style>
   <script type="importmap">
 {

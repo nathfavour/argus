@@ -16,6 +16,13 @@ export interface EncryptedPayload {
   iv: string;
 }
 
+export interface Attachment {
+  id: string;
+  type: 'image' | 'video';
+  url: string; // Base64 Data URI for MVP
+  mimeType: string;
+}
+
 export interface Report {
   id: string; // Hash
   timestamp: number;
@@ -24,11 +31,13 @@ export interface Report {
   content: string; // Decrypted content (only available after decryption)
   status: ReportStatus;
   isEncrypted: boolean;
+  attachments?: Attachment[];
 }
 
 export interface ReportSubmission {
   content: string;
   location: GeoLocation | null;
+  attachments?: Attachment[];
 }
 
 export type ViewState = 'landing' | 'reporter' | 'verifier';

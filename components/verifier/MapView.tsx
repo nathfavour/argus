@@ -11,6 +11,7 @@ export const MapView: React.FC<MapViewProps> = ({ reports, onSelectReport, isDar
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null); // Using any to avoid strict Leaflet type dependencies in this setup
   const tileLayerRef = useRef<any>(null);
+  const clusterGroupRef = useRef<any>(null);
 
   // Initialize Map
   useEffect(() => {
@@ -38,18 +39,26 @@ export const MapView: React.FC<MapViewProps> = ({ reports, onSelectReport, isDar
 
   }, [isDarkMode]);
 
-  // Update Markers
+  // Update Markers with Clustering
   useEffect(() => {
     if (!mapInstanceRef.current || !window.L) return;
 
-    // Clear existing markers (except tile layer which is managed separately)
-    mapInstanceRef.current.eachLayer((layer: any) => {
-      if (layer instanceof window.L.Marker) {
-        mapInstanceRef.current.removeLayer(layer);
-      }
+    // Remove existing cluster group if it exists
+    if (clusterGroupRef.current) {
+      mapInstanceRef.current.removeLayer(clusterGroupRef.current);
+      clusterGroupRef.current = null;
+    }
+
+    // Initialize new cluster group
+    // We can pass options here if we want custom styling for clusters
+    clusterGroupRef.current = window.L.markerClusterGroup({
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 50,
     });
 
-    // Add Markers
+    // Add Markers to Cluster Group
     reports.forEach(report => {
       const color = report.status === ReportStatus.VERIFIED ? '#10b981' : 
                     report.status === ReportStatus.SPAM ? '#ef4444' : '#f59e0b';
@@ -57,8 +66,8 @@ export const MapView: React.FC<MapViewProps> = ({ reports, onSelectReport, isDar
       const markerHtml = `
         <div style="
           background-color: ${color};
-          width: 12px;
-          height: 12px;
+          width: 14px;
+          height: 14px;
           border-radius: 50%;
           border: 2px solid ${isDarkMode ? '#fff' : '#000'};
           box-shadow: 0 0 10px ${color};
@@ -68,23 +77,53 @@ export const MapView: React.FC<MapViewProps> = ({ reports, onSelectReport, isDar
       const icon = window.L.divIcon({
         className: 'custom-marker',
         html: markerHtml,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6]
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
       });
 
-      const marker = window.L.marker([report.location.latitude, report.location.longitude], { icon })
-        .addTo(mapInstanceRef.current)
-        .bindPopup(`
-          <div class="text-slate-900 p-1">
-            <strong class="block mb-1 text-xs uppercase">${report.status}</strong>
-            <p class="text-xs line-clamp-2">${report.content.substring(0, 50)}...</p>
+      const marker = window.L.marker([report.location.latitude, report.location.longitude], { icon });
+
+      // Add Tooltip (Hover)
+      marker.bindTooltip(
+        `
+        <div class="font-sans text-xs">
+          <span class="font-bold block mb-0.5 ${report.status === ReportStatus.VERIFIED ? 'text-emerald-600' : 'text-amber-600'}">
+            ${report.status}
+          </span>
+          ${report.content.substring(0, 40)}${report.content.length > 40 ? '...' : ''}
+        </div>
+        `,
+        {
+          direction: 'top',
+          offset: [0, -10],
+          opacity: 0.9,
+          className: isDarkMode ? 'dark-tooltip' : ''
+        }
+      );
+
+      // Add Popup (Click)
+      marker.bindPopup(`
+          <div class="text-slate-900 p-1 min-w-[200px]">
+            <div class="flex justify-between items-center mb-2">
+               <strong class="text-xs uppercase px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300">${report.status}</strong>
+               <span class="text-[10px] text-slate-500">${new Date(report.timestamp).toLocaleDateString()}</span>
+            </div>
+            <p class="text-xs leading-relaxed">${report.content.substring(0, 100)}...</p>
+            <div class="mt-2 text-center text-xs text-emerald-600 font-medium">Click marker to view details</div>
           </div>
         `);
       
+      // Handle Click Selection
       marker.on('click', () => {
         onSelectReport(report.id);
       });
+
+      clusterGroupRef.current.addLayer(marker);
     });
+
+    // Add the cluster group to the map
+    mapInstanceRef.current.addLayer(clusterGroupRef.current);
+
   }, [reports, onSelectReport, isDarkMode]);
 
   return <div ref={mapContainerRef} className="w-full h-full bg-slate-100 dark:bg-slate-950 transition-colors duration-300" />;

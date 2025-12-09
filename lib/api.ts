@@ -10,7 +10,15 @@ let MOCK_REPORTS: Report[] = [
     location: { latitude: 9.0820, longitude: 8.6753, accuracy: 10 }, // Central Nigeria approx
     content: "Suspicious movement of unmarked trucks near the the abandoned factory.",
     status: ReportStatus.UNVERIFIED,
-    isEncrypted: true
+    isEncrypted: true,
+    attachments: [
+      {
+        id: "att_1",
+        type: "image",
+        mimeType: "image/jpeg",
+        url: "https://picsum.photos/seed/trucks/400/300" // Placeholder
+      }
+    ]
   },
   {
     id: "0x3d1...882a",
@@ -19,7 +27,8 @@ let MOCK_REPORTS: Report[] = [
     location: { latitude: 9.0600, longitude: 8.6500, accuracy: 25 }, 
     content: "Loud noises resembling gunfire heard from the eastern ridge.",
     status: ReportStatus.VERIFIED,
-    isEncrypted: true
+    isEncrypted: true,
+    attachments: []
   }
 ];
 
@@ -42,7 +51,8 @@ export const submitReport = async (submission: ReportSubmission): Promise<string
     location: submission.location || { latitude: 0, longitude: 0, accuracy: 0 },
     content: submission.content,
     status: ReportStatus.UNVERIFIED,
-    isEncrypted: true
+    isEncrypted: true,
+    attachments: submission.attachments || []
   };
 
   MOCK_REPORTS.unshift(newReport);

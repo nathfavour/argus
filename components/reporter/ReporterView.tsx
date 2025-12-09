@@ -5,12 +5,17 @@ import { submitReport } from "../../lib/api";
 import { transcribeAudio } from "../../lib/gemini";
 import { MAX_REPORT_LENGTH } from "../../constants";
 import { LiveIntakeModal } from "./LiveIntakeModal";
+import { Attachment } from "../../types";
 
 export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [content, setContent] = useState("");
   const { location, getLocation, loading: locLoading, error: locError } = useGeolocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedHash, setSubmittedHash] = useState<string | null>(null);
+  
+  // Media State
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Audio State
   const [isRecording, setIsRecording] = useState(false);
@@ -62,9 +67,38 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const type = file.type.startsWith('image/') ? 'image' : 'video';
+        
+        const newAttachment: Attachment = {
+          id: Date.now().toString(),
+          type,
+          url: result,
+          mimeType: file.type
+        };
+        
+        setAttachments(prev => [...prev, newAttachment]);
+      };
+      
+      reader.readAsDataURL(file);
+    }
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim() && attachments.length === 0) return;
 
     if (!location) {
       alert("GPS coordinates are required for secure verification. Please acquire location first.");
@@ -73,7 +107,7 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     setIsSubmitting(true);
     try {
-      const hash = await submitReport({ content, location });
+      const hash = await submitReport({ content, location, attachments });
       setSubmittedHash(hash);
     } catch (err) {
       console.error(err);
@@ -105,6 +139,7 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <Button onClick={() => {
           setSubmittedHash(null);
           setContent("");
+          setAttachments([]);
         }} variant="secondary" className="w-full">
           Submit Another Report
         </Button>
@@ -173,7 +208,7 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
             Incident Details
           </label>
-          <div className="relative group">
+          <div className="relative group mb-4">
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -206,16 +241,58 @@ export const ReporterView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               </button>
             </div>
           </div>
+          
+          {/* Attachments Section */}
+          <div className="space-y-3">
+             <input 
+               type="file" 
+               ref={fileInputRef} 
+               className="hidden" 
+               accept="image/*,video/*"
+               capture="environment"
+               onChange={handleFileSelect}
+             />
+             <div className="flex gap-2 overflow-x-auto pb-2">
+               <Button 
+                  type="button" 
+                  variant="secondary" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="shrink-0 h-20 w-20 flex flex-col items-center justify-center text-xs gap-1 border-dashed border-2"
+               >
+                 <i className="fas fa-camera text-lg"></i>
+                 <span>Add Media</span>
+               </Button>
+               
+               {attachments.map(att => (
+                 <div key={att.id} className="relative shrink-0 h-20 w-20 rounded-lg overflow-hidden group border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
+                    {att.type === 'image' ? (
+                      <img src={att.url} alt="attachment" className="w-full h-full object-cover" />
+                    ) : (
+                      <video src={att.url} className="w-full h-full object-cover" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                 </div>
+               ))}
+             </div>
+          </div>
+
           <p className="text-xs text-slate-500 mt-2">
             <i className="fas fa-shield-alt mr-1"></i>
-            Identity protected. Hold microphone to transcribe audio.
+            Identity protected. Media stripped of metadata.
           </p>
         </div>
 
         <Button 
           type="submit" 
           className="w-full py-4 text-lg font-bold shadow-emerald-900/50"
-          disabled={!content}
+          // We allow submit if there is content OR attachments
+          disabled={!content.trim() && attachments.length === 0}
           isLoading={isSubmitting}
         >
           Submit Secure Report

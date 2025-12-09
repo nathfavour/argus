@@ -131,4 +131,28 @@ export const connectLiveSession = async (
     const inputData = e.inputBuffer.getChannelData(0);
     // Convert float32 to PCM16
     const pcmData = float32ToPcm16(inputData);
+    const base64Data = pcmToBase64(new Uint8Array(pcmData.buffer));
     
+    sessionPromise.then((session) => {
+      session.sendRealtimeInput({ 
+        media: { 
+          mimeType: 'audio/pcm;rate=16000', 
+          data: base64Data 
+        } 
+      });
+    });
+  };
+
+  source.connect(processor);
+  processor.connect(audioContext.destination);
+
+  return {
+    close: () => {
+      stream.getTracks().forEach(track => track.stop());
+      processor.disconnect();
+      source.disconnect();
+      audioContext.close();
+      sessionPromise.then(s => s.close());
+    }
+  };
+};
