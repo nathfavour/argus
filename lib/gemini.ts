@@ -99,6 +99,10 @@ export const connectLiveSession = async (
   onClose: () => void,
   onError: (e: Error) => void
 ) => {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error("Microphone access is not supported in this environment. Please ensure you are using HTTPS.");
+  }
+
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
   
@@ -127,28 +131,4 @@ export const connectLiveSession = async (
     const inputData = e.inputBuffer.getChannelData(0);
     // Convert float32 to PCM16
     const pcmData = float32ToPcm16(inputData);
-    const base64Data = pcmToBase64(new Uint8Array(pcmData.buffer));
     
-    sessionPromise.then((session) => {
-      session.sendRealtimeInput({ 
-        media: { 
-          mimeType: 'audio/pcm;rate=16000', 
-          data: base64Data 
-        } 
-      });
-    });
-  };
-
-  source.connect(processor);
-  processor.connect(audioContext.destination);
-
-  return {
-    close: () => {
-      stream.getTracks().forEach(track => track.stop());
-      processor.disconnect();
-      source.disconnect();
-      audioContext.close();
-      sessionPromise.then(s => s.close());
-    }
-  };
-};

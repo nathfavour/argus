@@ -4,70 +4,72 @@ import { connectLiveSession } from '../../lib/gemini';
 import { decodePcmAudioData, base64ToPcm } from '../../lib/audio';
 
 export const LiveIntakeModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [isTalking, setIsTalking] = useState(false);
   const sessionCleanerRef = useRef<() => void>();
   const audioContextRef = useRef<AudioContext | null>(null);
   const nextStartTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    let mounted = true;
-    
-    const init = async () => {
-      try {
-        if (!audioContextRef.current) {
-          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        }
-
-        const session = await connectLiveSession(
-          async (msg) => {
-            if (!mounted) return;
-            
-            // Handle Audio Output
-            const base64Audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-            if (base64Audio && audioContextRef.current) {
-              setIsTalking(true);
-              const ctx = audioContextRef.current;
-              const pcmData = base64ToPcm(base64Audio);
-              const audioBuffer = await decodePcmAudioData(pcmData, ctx, 24000, 1);
-              
-              const source = ctx.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(ctx.destination);
-              
-              const currentTime = ctx.currentTime;
-              const startTime = Math.max(currentTime, nextStartTimeRef.current);
-              source.start(startTime);
-              nextStartTimeRef.current = startTime + audioBuffer.duration;
-              
-              source.onended = () => {
-                 if (ctx.currentTime >= nextStartTimeRef.current) {
-                    setIsTalking(false);
-                 }
-              };
-            }
-          },
-          () => setStatus('connected'),
-          () => console.log('Session closed'),
-          (err) => setStatus('error')
-        );
-
-        sessionCleanerRef.current = session.close;
-
-      } catch (e) {
-        console.error(e);
-        setStatus('error');
-      }
-    };
-
-    init();
-
     return () => {
-      mounted = false;
       if (sessionCleanerRef.current) sessionCleanerRef.current();
       if (audioContextRef.current) audioContextRef.current.close();
     };
   }, []);
+
+  const startSession = async () => {
+    setStatus('connecting');
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      }
+
+      // Ensure context is running (fixes autoplay policy issues)
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+
+      const session = await connectLiveSession(
+        async (msg) => {
+          // Handle Audio Output
+          const base64Audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+          if (base64Audio && audioContextRef.current) {
+            setIsTalking(true);
+            const ctx = audioContextRef.current;
+            const pcmData = base64ToPcm(base64Audio);
+            const audioBuffer = await decodePcmAudioData(pcmData, ctx, 24000, 1);
+            
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(ctx.destination);
+            
+            const currentTime = ctx.currentTime;
+            const startTime = Math.max(currentTime, nextStartTimeRef.current);
+            source.start(startTime);
+            nextStartTimeRef.current = startTime + audioBuffer.duration;
+            
+            source.onended = () => {
+               if (ctx.currentTime >= nextStartTimeRef.current) {
+                  setIsTalking(false);
+               }
+            };
+          }
+        },
+        () => setStatus('connected'),
+        () => console.log('Session closed'),
+        (err) => {
+          console.error(err);
+          setStatus('error');
+        }
+      );
+
+      sessionCleanerRef.current = session.close;
+
+    } catch (e) {
+      console.error(e);
+      setStatus('error');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-fade-in">
@@ -85,23 +87,30 @@ export const LiveIntakeModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
               ? isTalking 
                 ? 'bg-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.5)] scale-110' 
                 : 'bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-500'
-              : 'bg-slate-200 dark:bg-slate-800 animate-pulse'
+              : 'bg-slate-200 dark:bg-slate-800'
           }`}>
             <i className={`fas fa-microphone text-4xl ${status === 'connected' ? (isTalking ? 'text-white' : 'text-emerald-600') : 'text-slate-400'}`}></i>
           </div>
         </div>
 
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Live Intake Mode</h2>
-        <p className="text-slate-600 dark:text-slate-400 text-center mb-8">
+        <p className="text-slate-600 dark:text-slate-400 text-center mb-8 h-10">
+          {status === 'idle' && "Press Start to begin a secure voice session."}
           {status === 'connecting' && "Establishing secure line..."}
           {status === 'connected' && "Listening. Speak naturally to report the incident."}
           {status === 'error' && "Connection failed. Please verify microphone permissions."}
         </p>
 
-        <div className="w-full flex justify-center">
-          <Button variant="danger" onClick={onClose} className="px-8">
-            End Session
-          </Button>
+        <div className="w-full flex justify-center gap-4">
+          {(status === 'idle' || status === 'error') ? (
+            <Button onClick={startSession} className="px-8 bg-emerald-600 hover:bg-emerald-700">
+              {status === 'error' ? 'Retry Connection' : 'Start Secure Session'}
+            </Button>
+          ) : (
+             <Button variant="danger" onClick={onClose} className="px-8">
+              End Session
+            </Button>
+          )}
         </div>
       </div>
     </div>
